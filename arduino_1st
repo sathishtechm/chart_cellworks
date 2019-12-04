@@ -1,0 +1,213 @@
+#include <SoftwareSerial.h>
+SoftwareSerial sim808(7,8);
+SoftwareSerial Serial1(9, 10); 
+
+#include <EEPROM.h>
+
+char phone_no[] = "+919790003193"; // replace with your phone no.
+String data[5];
+String data2[5];
+#define DEBUG true
+String state,timegps,latitude,longitude;
+String lat1,lat2,lat3,lat4;
+int inputVoltage;
+float battery_value;
+float output_value;
+String mystring;
+int UserValidity;
+int addr1 = 0;
+byte value;
+const int analogInput = A0;
+int outputLed = 10;
+int statusLed = 5;
+int powerLed = 13;
+
+
+void setup() {
+   
+   
+sim808.begin(19200);
+  Serial1.begin(19200);
+  Serial.begin(115200); 
+
+ 
+ 
+ delay(50);
+
+sim808.listen();
+ sim808.print("AT+CSMP=17,167,0,0");  // set this parameter if empty SMS received
+ delay(100);
+ sim808.print("AT+CMGF=1\r"); 
+ delay(100);
+
+ sendData("AT+CGNSPWR=1",1000,DEBUG);
+ delay(50);
+ sendData("AT+CGNSSEQ=RMC",1000,DEBUG);
+ delay(150);
+ sendData("AT+SAPBR=3,1,\"APN\",\"vodafone\"",1000,DEBUG);
+ delay(50);  
+ sendData("AT+SAPBR=1,1",1000,DEBUG);
+ delay(50);
+ sendData("AT+HTTPINIT",1000,DEBUG);
+ delay(50);  
+ sendData("AT+HTTPPARA=\"CID\",1",1000,DEBUG);
+ delay(50);
+}
+
+
+
+void loop() {
+  Serial.println("entered loop cycle");
+String hex ="";
+Serial1.listen();
+Serial.println("new cycle");
+  while (Serial1.available()<=0){
+  Serial.println("no cycle");
+}
+
+int a,b;
+
+while (Serial1.available() > 0){
+  //int a = Serial1.read(); 
+  if (Serial1.read() == 170 ){
+
+    if (Serial1.read() == 85 ){
+
+      for (int i=0;i<=40;i++){
+ int c = Serial1.read();
+
+  Serial.println(c,HEX);
+  hex += String(c,HEX) + ",";
+  
+  
+}
+Serial.println(hex);
+break;
+
+
+    }
+  }
+
+  
+
+}
+
+delay(5000);
+sim808.listen();
+
+delay(5000);
+    
+
+    sendTabData("AT+CGNSINF",1000,DEBUG);
+    if (state !=0) {
+    Serial.println("State  :"+state);
+    Serial.println("Time  :"+timegps);
+    Serial.println("Latitude  :"+latitude);
+    Serial.println("Longitude  :"+longitude);
+    delay(3000);
+    updateData(hex);
+   // sim808.flush();
+
+     data[5] = "0";
+    // test();
+     
+    
+  } else {
+    Serial.println("GPS Initialising...");
+  }
+   
+}
+
+void updateData(String hex){
+  delay(2000);
+  delay(5000);
+     //String url1 = "AT+HTTPPARA= \"URL\",\"http://leepedrive.com/user_balance_update.php?client_id=2&battery_value=";
+     String url1 = "AT+HTTPPARA= \"URL\",\"http://leepedrive.com/bmsvalues.php?custid=01&bmsvalues=";
+     delay(7000);
+    // String bmsvalues = hex;
+      String one = url1 + hex+"&latlang="+latitude+","+longitude+"\"";
+       delay(15000);
+     //String dash = "\"";
+    Serial.println(one);
+     delay(10000);
+     sendData(one,1000,DEBUG);
+     //Serial.println("ahii" +hex);
+     delay(50);
+     sendData("AT+HTTPACTION=0",1000,DEBUG);
+     delay(5000);
+     sendTabData3("AT+HTTPREAD=0,50",1000,DEBUG);
+     delay(5000);    
+}
+
+void sendTabData(String command , const int timeout , boolean debug){
+Serial.println(command);
+  sim808.println(command);
+  long int time = millis();
+  int i = 0;
+
+  while((time+timeout) > millis()){
+    while(sim808.available()){
+      char c = sim808.read();
+    
+      if (c != ',') {
+         data[i] +=c;
+         delay(100);
+      } else {
+        i++;  
+      }
+      if (i == 5) {
+        delay(100);
+        goto exitL;
+      }
+    }
+  }exitL:
+  if (debug) {
+    state = data[1];
+    timegps = data[2];
+    latitude = data[3];
+    longitude =data[4];
+    Serial.println("State  :"+state);
+    Serial.println("Time  :"+timegps);
+    Serial.println("Latitude  :"+latitude);
+    Serial.println("Longitude  :"+longitude);  
+  }
+}
+String sendData (String command , const int timeout ,boolean debug){
+  String response = "";
+  sim808.println(command);
+  long int time = millis();
+  int i = 0;
+
+  while ( (time+timeout ) > millis()){
+    while (sim808.available()){
+      char c = sim808.read();
+      response +=c;
+      
+    }
+  }
+  if (debug) {
+     Serial.print(response);
+     }
+     return response;
+}
+
+
+
+void sendTabData3(String command , const int timeout , boolean debug){
+  String response = "";
+  sim808.println(command);
+  long int time = millis();
+  int i = 0;
+
+  while ( (time+timeout ) > millis()){
+    while (sim808.available()){
+      char c = sim808.read();
+      response +=c;
+      
+    }
+  }
+  if (debug) {
+     Serial.print(response);
+     }
+     return response;
+}
